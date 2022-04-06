@@ -241,7 +241,7 @@ int main(int argc, char* argv[])
     for (int i = 0; i < linesCount; i++)
     {
         // Read enum line
-        if (IsTextEqual(lines[i], "typedef enum {", 14))
+        if (IsTextEqual(lines[i], "typedef enum {", 14) && lines[i][TextLength(lines[i])-1] != ';') // ignore inline enums
         {
             // Keep the line position in the array of lines,
             // so, we can scan that position and following lines
@@ -401,17 +401,17 @@ int main(int argc, char* argv[])
                     {
                         if (linePtr[c + 1] == ' ') c += 2;
                         else c++;
-  
+
                         // Parse integer value
                         int n = 0;
                         char integer[16] = { 0 };
-  
+
                         while ((linePtr[c] != ',') && (linePtr[c] != ' ') && (linePtr[c] != '\0'))
                         {
                             integer[n] = linePtr[c];
                             c++; n++;
                         }
-  
+
                         if (integer[1] == 'x') enums[i].valueInteger[enums[i].valueCount] = (int)strtol(integer, NULL, 16);
                         else enums[i].valueInteger[enums[i].valueCount] = atoi(integer);
                     }
@@ -820,6 +820,12 @@ static void GetDataTypeAndName(const char *typeName, int typeNameLen, char *type
             MemoryCopy(name, typeName + k + 1, typeNameLen - k - 1);
             break;
         }
+        else if (typeName[k] == '.' && typeNameLen == 3) // Handle varargs ...);
+        {
+            MemoryCopy(type, "...", 3);
+            MemoryCopy(name, "args", 4);
+	        break;
+        }
     }
 }
 
@@ -863,22 +869,22 @@ static bool IsTextEqual(const char *text1, const char *text2, unsigned int count
 static char *EscapeBackslashes(char *text)
 {
     static char buffer[256] = { 0 };
-    
+
     int count = 0;
-    
+
     for (int i = 0; (text[i] != '\0') && (i < 255); i++, count++)
     {
         buffer[count] = text[i];
-        
-        if (text[i] == '\\') 
+
+        if (text[i] == '\\')
         {
             buffer[count + 1] = '\\';
             count++;
         }
     }
-    
+
     buffer[count] = '\0';
-    
+
     return buffer;
 }
 
@@ -1275,7 +1281,16 @@ static void ExportParsedData(const char *fileName, int format)
             fprintf(outFile, "    <Defines count=\"%i\">\n", defineCount);
             for (int i = 0; i < defineCount; i++)
             {
-                fprintf(outFile, "        <Define name=\"%s\" type=\"%s\" value=\"%s\" desc=\"%s\" />\n", defines[i].name, StrDefineType(defines[i].type), defines[i].value, defines[i].desc);
+                fprintf(outFile, "        <Define name=\"%s\" type=\"%s\" ", defines[i].name, StrDefineType(defines[i].type));
+                if (defines[i].type == STRING)
+                {
+                    fprintf(outFile, "value=%s", defines[i].value);
+                }
+                else
+                {
+                    fprintf(outFile, "value=\"%s\"", defines[i].value);
+                }
+                fprintf(outFile, " desc=\"%s\" />\n", defines[i].desc + 3);
             }
             fprintf(outFile, "    </Defines>\n");
 

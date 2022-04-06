@@ -683,7 +683,7 @@ Image GenImageFontAtlas(const GlyphInfo *chars, Rectangle **charRecs, int glyphC
     // so image size would result bigger than default font type
     float requiredArea = 0;
     for (int i = 0; i < glyphCount; i++) requiredArea += ((chars[i].image.width + 2*padding)*(chars[i].image.height + 2*padding));
-    float guessSize = sqrtf(requiredArea)*1.3f;
+    float guessSize = sqrtf(requiredArea)*1.4f;
     int imageSize = (int)powf(2, ceilf(logf((float)guessSize)/logf(2)));  // Calculate next POT
 
     atlas.width = imageSize;   // Atlas bitmap width
@@ -730,7 +730,19 @@ Image GenImageFontAtlas(const GlyphInfo *chars, Rectangle **charRecs, int glyphC
                 // height is bigger than fontSize, it could be up to (fontSize + 8)
                 offsetY += (fontSize + 2*padding);
 
-                if (offsetY > (atlas.height - fontSize - padding)) break;
+                if (offsetY > (atlas.height - fontSize - padding))
+                {
+                    for(int j = i + 1; j < glyphCount; j++)
+                    {
+                        TRACELOG(LOG_WARNING, "FONT: Failed to package character (%i)", j);
+                        // make sure remaining recs contain valid data
+                        recs[j].x = 0;
+                        recs[j].y = 0;
+                        recs[j].width = 0;
+                        recs[j].height = 0;
+                    }
+                    break;
+                }
             }
         }
     }
@@ -825,7 +837,7 @@ void UnloadFont(Font font)
 bool ExportFontAsCode(Font font, const char *fileName)
 {
     bool success = false;
-    
+
 #ifndef TEXT_BYTES_PER_LINE
     #define TEXT_BYTES_PER_LINE     20
 #endif
@@ -865,7 +877,7 @@ bool ExportFontAsCode(Font font, const char *fileName)
     Image image = LoadImageFromTexture(font.texture);
     if (image.format != PIXELFORMAT_UNCOMPRESSED_GRAY_ALPHA) TRACELOG(LOG_WARNING, "Font export as code: Font image format is not GRAY+ALPHA!");
     int imageDataSize = GetPixelDataSize(image.width, image.height, image.format);
-    
+
     // Image data is usually GRAYSCALE + ALPHA and can be reduced to GRAYSCALE
     //ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_GRAYSCALE);
 
@@ -874,7 +886,7 @@ bool ExportFontAsCode(Font font, const char *fileName)
     // WARNING: Data is compressed using raylib CompressData() DEFLATE,
     // it requires to be decompressed with raylib DecompressData(), that requires
     // compiling raylib with SUPPORT_COMPRESSION_API config flag enabled
- 
+
     // Compress font image data
     int compDataSize = 0;
     unsigned char *compData = CompressData(image.data, imageDataSize, &compDataSize);
@@ -960,7 +972,7 @@ bool ExportFontAsCode(Font font, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "    font.glyphs = fontGlyphs_%s;\n\n", fileNamePascal);
 #endif
     byteCount += sprintf(txtData + byteCount, "    return font;\n");
-    byteCount += sprintf(txtData + byteCount, "}\n\0");
+    byteCount += sprintf(txtData + byteCount, "}\n");
 
     UnloadImage(image);
 
@@ -980,11 +992,11 @@ bool ExportFontAsCode(Font font, const char *fileName)
 // NOTE: Uses default font
 void DrawFPS(int posX, int posY)
 {
-    Color color = LIME; // good fps
+    Color color = LIME;                         // Good FPS
     int fps = GetFPS();
 
-    if (fps < 30 && fps >= 15) color = ORANGE;  // warning FPS
-    else if (fps < 15) color = RED;    // bad FPS
+    if ((fps < 30) && (fps >= 15)) color = ORANGE;  // Warning FPS
+    else if (fps < 15) color = RED;             // Low FPS
 
     DrawText(TextFormat("%2i FPS", GetFPS()), posX, posY, 20, color);
 }
@@ -1092,7 +1104,7 @@ void DrawTextCodepoint(Font font, int codepoint, Vector2 position, float fontSiz
 }
 
 // Draw multiple character (codepoints)
-void DrawTextCodepoints(Font font, int *codepoints, int count, Vector2 position, float fontSize, float spacing, Color tint)
+void DrawTextCodepoints(Font font, const int *codepoints, int count, Vector2 position, float fontSize, float spacing, Color tint)
 {
     int textOffsetY = 0;            // Offset between lines (on line break '\n')
     float textOffsetX = 0.0f;       // Offset X to next character to draw
@@ -1371,7 +1383,7 @@ const char *TextSubtext(const char *text, int position, int length)
 
 // Replace text string
 // REQUIRES: strlen(), strstr(), strncpy(), strcpy()
-// WARNING: Returned buffer must be freed by the user (if return != NULL)
+// WARNING: Allocated memory should be manually freed
 char *TextReplace(char *text, const char *replace, const char *by)
 {
     // Sanity checks and initialization
@@ -1605,7 +1617,7 @@ const char *TextToPascal(const char *text)
 // Encode text codepoint into UTF-8 text
 // REQUIRES: memcpy()
 // WARNING: Allocated memory should be manually freed
-char *TextCodepointsToUTF8(int *codepoints, int length)
+char *TextCodepointsToUTF8(const int *codepoints, int length)
 {
     // We allocate enough memory fo fit all possible codepoints
     // NOTE: 5 bytes for every codepoint should be enough

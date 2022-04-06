@@ -242,6 +242,7 @@
     //#include <android/sensor.h>           // Required for: Android sensors functions (accelerometer, gyroscope, light...)
     #include <android/window.h>             // Required for: AWINDOW_FLAG_FULLSCREEN definition and others
     #include <android_native_app_glue.h>    // Required for: android_app struct and activity management
+    #include <jni.h>                        // Required for: JNIEnv and JavaVM [Used in OpenURL()]
 
     #include <EGL/egl.h>                    // Native platform windowing system interface
     //#include <GLES2/gl2.h>                // OpenGL ES 2.0 library (not required in this module, only in rlgl)
@@ -722,7 +723,7 @@ struct android_app *GetAndroidApp(void)
 void InitWindow(int width, int height, const char *title)
 {
     TRACELOG(LOG_INFO, "Initializing raylib %s", RAYLIB_VERSION);
-    
+
     TRACELOG(LOG_INFO, "Supported raylib modules:");
     TRACELOG(LOG_INFO, "    > rcore:..... loaded (mandatory)");
     TRACELOG(LOG_INFO, "    > rlgl:...... loaded (mandatory)");
@@ -731,12 +732,12 @@ void InitWindow(int width, int height, const char *title)
 #else
     TRACELOG(LOG_INFO, "    > rshapes:... not loaded (optional)");
 #endif
-#if defined(SUPPORT_MODULE_RTEXTURES) 
+#if defined(SUPPORT_MODULE_RTEXTURES)
     TRACELOG(LOG_INFO, "    > rtextures:. loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > rtextures:. not loaded (optional)");
-#endif  
-#if defined(SUPPORT_MODULE_RTEXT) 
+#endif
+#if defined(SUPPORT_MODULE_RTEXT)
     TRACELOG(LOG_INFO, "    > rtext:..... loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > rtext:..... not loaded (optional)");
@@ -746,7 +747,7 @@ void InitWindow(int width, int height, const char *title)
 #else
     TRACELOG(LOG_INFO, "    > rmodels:... not loaded (optional)");
 #endif
-#if defined(SUPPORT_MODULE_RAUDIO) 
+#if defined(SUPPORT_MODULE_RAUDIO)
     TRACELOG(LOG_INFO, "    > raudio:.... loaded (optional)");
 #else
     TRACELOG(LOG_INFO, "    > raudio:.... not loaded (optional)");
@@ -890,7 +891,7 @@ void InitWindow(int width, int height, const char *title)
     //emscripten_set_resize_callback(EMSCRIPTEN_EVENT_TARGET_WINDOW, NULL, 1, EmscriptenResizeCallback);
     // Trigger this once to get initial window sizing
     //EmscriptenResizeCallback(EMSCRIPTEN_EVENT_RESIZE, NULL, NULL);
-    
+
     // Support keyboard events -> Not used, GLFW.JS takes care of that
     //emscripten_set_keypress_callback("#canvas", NULL, 1, EmscriptenKeyboardCallback);
     //emscripten_set_keydown_callback("#canvas", NULL, 1, EmscriptenKeyboardCallback);
@@ -1276,7 +1277,7 @@ void ToggleFullscreen(void)
         int width, height;
         emscripten_get_canvas_element_size("#canvas", &width, &height);
         TRACELOG(LOG_WARNING, "Emscripten: Exit fullscreen: Canvas size: %i x %i", width, height);
-        
+
         CORE.Window.fullscreen = false;          // Toggle fullscreen flag
         CORE.Window.flags &= ~FLAG_FULLSCREEN_MODE;
     }
@@ -1903,9 +1904,11 @@ const char *GetClipboardText(void)
 {
 #if defined(PLATFORM_DESKTOP)
     return glfwGetClipboardString(CORE.Window.handle);
-#else
-    return NULL;
 #endif
+#if defined(PLATFORM_WEB)
+    return emscripten_run_script_string("navigator.clipboard.readText()");
+#endif
+    return NULL;
 }
 
 // Set clipboard text content
@@ -1913,6 +1916,9 @@ void SetClipboardText(const char *text)
 {
 #if defined(PLATFORM_DESKTOP)
     glfwSetClipboardString(CORE.Window.handle, text);
+#endif
+#if defined(PLATFORM_WEB)
+    emscripten_run_script(TextFormat("navigator.clipboard.writeText('%s')", text));
 #endif
 }
 
@@ -2668,7 +2674,7 @@ void SetTargetFPS(int fps)
     if (fps < 1) CORE.Time.target = 0.0;
     else CORE.Time.target = 1.0/(double)fps;
 
-    TRACELOG(LOG_INFO, "TIMER: Target time per frame: %02.03f milliseconds", (float)CORE.Time.target*1000);
+    TRACELOG(LOG_INFO, "TIMER: Target time per frame: %02.03f milliseconds", (float)CORE.Time.target*1000.0f);
 }
 
 // Get current FPS
@@ -2750,7 +2756,7 @@ void TakeScreenshot(const char *fileName)
 
     char path[2048] = { 0 };
     strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, fileName));
-    
+
     ExportImage(image, path);           // WARNING: Module required: rtextures
     RL_FREE(imgData);
 
@@ -2798,7 +2804,7 @@ bool FileExists(const char *fileName)
 
     // NOTE: Alternatively, stat() can be used instead of access()
     //#include <sys/stat.h>
-    //struct stat statbuf;   
+    //struct stat statbuf;
     //if (stat(filename, &statbuf) == 0) result = true;
 
     return result;
@@ -2856,9 +2862,9 @@ bool DirectoryExists(const char *dirPath)
 int GetFileLength(const char *fileName)
 {
     int size = 0;
-    
+
     FILE *file = fopen(fileName, "rb");
-    
+
     if (file != NULL)
     {
         fseek(file, 0L, SEEK_END);
@@ -3093,7 +3099,7 @@ char **GetDirectoryFiles(const char *dirPath, int *fileCount)
     if (dir != NULL) // It's a directory
     {
         // Count files
-        while ((entity = readdir(dir)) != NULL) counter++; 
+        while ((entity = readdir(dir)) != NULL) counter++;
 
         dirFileCount = counter;
         *fileCount = dirFileCount;
@@ -3101,7 +3107,7 @@ char **GetDirectoryFiles(const char *dirPath, int *fileCount)
         // Memory allocation for dirFileCount
         dirFilesPath = (char **)RL_MALLOC(dirFileCount*sizeof(char *));
         for (int i = 0; i < dirFileCount; i++) dirFilesPath[i] = (char *)RL_MALLOC(MAX_FILEPATH_LENGTH*sizeof(char));
-        
+
         // Reset our position in the directory to the beginning
         rewinddir(dir);
 
@@ -3181,7 +3187,7 @@ long GetFileModTime(const char *fileName)
 }
 
 // Compress data (DEFLATE algorythm)
-unsigned char *CompressData(unsigned char *data, int dataLength, int *compDataLength)
+unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDataSize)
 {
     #define COMPRESSION_QUALITY_DEFLATE  8
 
@@ -3190,40 +3196,40 @@ unsigned char *CompressData(unsigned char *data, int dataLength, int *compDataLe
 #if defined(SUPPORT_COMPRESSION_API)
     // Compress data and generate a valid DEFLATE stream
     struct sdefl sdefl = { 0 };
-    int bounds = sdefl_bound(dataLength);
+    int bounds = sdefl_bound(dataSize);
     compData = (unsigned char *)RL_CALLOC(bounds, 1);
-    *compDataLength = sdeflate(&sdefl, compData, data, dataLength, COMPRESSION_QUALITY_DEFLATE);   // Compression level 8, same as stbwi
+    *compDataSize = sdeflate(&sdefl, compData, data, dataSize, COMPRESSION_QUALITY_DEFLATE);   // Compression level 8, same as stbwi
 
-    TraceLog(LOG_INFO, "SYSTEM: Compress data: Original size: %i -> Comp. size: %i", dataLength, *compDataLength);
+    TraceLog(LOG_INFO, "SYSTEM: Compress data: Original size: %i -> Comp. size: %i", dataSize, *compDataSize);
 #endif
 
     return compData;
 }
 
 // Decompress data (DEFLATE algorythm)
-unsigned char *DecompressData(unsigned char *compData, int compDataLength, int *dataLength)
+unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize)
 {
     unsigned char *data = NULL;
 
 #if defined(SUPPORT_COMPRESSION_API)
     // Decompress data from a valid DEFLATE stream
     data = RL_CALLOC(MAX_DECOMPRESSION_SIZE*1024*1024, 1);
-    int length = sinflate(data, MAX_DECOMPRESSION_SIZE, compData, compDataLength);
+    int length = sinflate(data, MAX_DECOMPRESSION_SIZE, compData, compDataSize);
     unsigned char *temp = RL_REALLOC(data, length);
 
     if (temp != NULL) data = temp;
     else TRACELOG(LOG_WARNING, "SYSTEM: Failed to re-allocate required decompression memory");
 
-    *dataLength = length;
+    *dataSize = length;
 
-    TraceLog(LOG_INFO, "SYSTEM: Decompress data: Comp. size: %i -> Original size: %i", compDataLength, *dataLength);
+    TraceLog(LOG_INFO, "SYSTEM: Decompress data: Comp. size: %i -> Original size: %i", compDataSize, *dataSize);
 #endif
 
     return data;
 }
 
 // Encode data to Base64 string
-char *EncodeDataBase64(const unsigned char *data, int dataLength, int *outputLength)
+char *EncodeDataBase64(const unsigned char *data, int dataSize, int *outputSize)
 {
     static const unsigned char base64encodeTable[] = {
         'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
@@ -3233,17 +3239,17 @@ char *EncodeDataBase64(const unsigned char *data, int dataLength, int *outputLen
 
     static const int modTable[] = { 0, 2, 1 };
 
-    *outputLength = 4*((dataLength + 2)/3);
+    *outputSize = 4*((dataSize + 2)/3);
 
-    char *encodedData = RL_MALLOC(*outputLength);
+    char *encodedData = RL_MALLOC(*outputSize);
 
     if (encodedData == NULL) return NULL;
 
-    for (int i = 0, j = 0; i < dataLength;)
+    for (int i = 0, j = 0; i < dataSize;)
     {
-        unsigned int octetA = (i < dataLength)? (unsigned char)data[i++] : 0;
-        unsigned int octetB = (i < dataLength)? (unsigned char)data[i++] : 0;
-        unsigned int octetC = (i < dataLength)? (unsigned char)data[i++] : 0;
+        unsigned int octetA = (i < dataSize)? (unsigned char)data[i++] : 0;
+        unsigned int octetB = (i < dataSize)? (unsigned char)data[i++] : 0;
+        unsigned int octetC = (i < dataSize)? (unsigned char)data[i++] : 0;
 
         unsigned int triple = (octetA << 0x10) + (octetB << 0x08) + octetC;
 
@@ -3253,13 +3259,13 @@ char *EncodeDataBase64(const unsigned char *data, int dataLength, int *outputLen
         encodedData[j++] = base64encodeTable[(triple >> 0*6) & 0x3F];
     }
 
-    for (int i = 0; i < modTable[dataLength%3]; i++) encodedData[*outputLength - 1 - i] = '=';  // Padding character
+    for (int i = 0; i < modTable[dataSize%3]; i++) encodedData[*outputSize - 1 - i] = '=';  // Padding character
 
     return encodedData;
 }
 
 // Decode Base64 string data
-unsigned char *DecodeDataBase64(unsigned char *data, int *outputLength)
+unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize)
 {
     static const unsigned char base64decodeTable[] = {
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3269,21 +3275,21 @@ unsigned char *DecodeDataBase64(unsigned char *data, int *outputLength)
     };
 
     // Get output size of Base64 input data
-    int outLength = 0;
+    int outSize = 0;
     for (int i = 0; data[4*i] != 0; i++)
     {
         if (data[4*i + 3] == '=')
         {
-            if (data[4*i + 2] == '=') outLength += 1;
-            else outLength += 2;
+            if (data[4*i + 2] == '=') outSize += 1;
+            else outSize += 2;
         }
-        else outLength += 3;
+        else outSize += 3;
     }
 
     // Allocate memory to store decoded Base64 data
-    unsigned char *decodedData = (unsigned char *)RL_MALLOC(outLength);
+    unsigned char *decodedData = (unsigned char *)RL_MALLOC(outSize);
 
-    for (int i = 0; i < outLength/3; i++)
+    for (int i = 0; i < outSize/3; i++)
     {
         unsigned char a = base64decodeTable[(int)data[4*i]];
         unsigned char b = base64decodeTable[(int)data[4*i + 1]];
@@ -3295,24 +3301,24 @@ unsigned char *DecodeDataBase64(unsigned char *data, int *outputLength)
         decodedData[3*i + 2] = (c << 6) | d;
     }
 
-    if (outLength%3 == 1)
+    if (outSize%3 == 1)
     {
-        int n = outLength/3;
+        int n = outSize/3;
         unsigned char a = base64decodeTable[(int)data[4*n]];
         unsigned char b = base64decodeTable[(int)data[4*n + 1]];
-        decodedData[outLength - 1] = (a << 2) | (b >> 4);
+        decodedData[outSize - 1] = (a << 2) | (b >> 4);
     }
-    else if (outLength%3 == 2)
+    else if (outSize%3 == 2)
     {
-        int n = outLength/3;
+        int n = outSize/3;
         unsigned char a = base64decodeTable[(int)data[4*n]];
         unsigned char b = base64decodeTable[(int)data[4*n + 1]];
         unsigned char c = base64decodeTable[(int)data[4*n + 2]];
-        decodedData[outLength - 2] = (a << 2) | (b >> 4);
-        decodedData[outLength - 1] = (b << 4) | (c >> 2);
+        decodedData[outSize - 2] = (a << 2) | (b >> 4);
+        decodedData[outSize - 1] = (b << 4) | (c >> 2);
     }
 
-    *outputLength = outLength;
+    *outputSize = outSize;
     return decodedData;
 }
 
@@ -3438,7 +3444,7 @@ void OpenURL(const char *url)
 #if defined(PLATFORM_DESKTOP)
         char *cmd = (char *)RL_CALLOC(strlen(url) + 10, sizeof(char));
     #if defined(_WIN32)
-        sprintf(cmd, "explorer %s", url);
+        sprintf(cmd, "explorer \"%s\"", url);
     #endif
     #if defined(__linux__) || defined(__FreeBSD__)
         sprintf(cmd, "xdg-open '%s'", url); // Alternatives: firefox, x-www-browser
@@ -3452,6 +3458,29 @@ void OpenURL(const char *url)
 #endif
 #if defined(PLATFORM_WEB)
         emscripten_run_script(TextFormat("window.open('%s', '_blank')", url));
+#endif
+#if defined(PLATFORM_ANDROID)
+        JNIEnv *env = NULL;
+        JavaVM *vm = CORE.Android.app->activity->vm;
+        (*vm)->AttachCurrentThread(vm, &env, NULL);
+
+        jstring urlString = (*env)->NewStringUTF(env, url);
+        jclass uriClass = (*env)->FindClass(env, "android/net/Uri");
+        jmethodID uriParse = (*env)->GetStaticMethodID(env, uriClass, "parse", "(Ljava/lang/String;)Landroid/net/Uri;");
+        jobject uri = (*env)->CallStaticObjectMethod(env, uriClass, uriParse, urlString);
+
+        jclass intentClass = (*env)->FindClass(env, "android/content/Intent");
+        jfieldID actionViewId = (*env)->GetStaticFieldID(env, intentClass, "ACTION_VIEW", "Ljava/lang/String;");
+        jobject actionView = (*env)->GetStaticObjectField(env, intentClass, actionViewId);
+        jmethodID newIntent = (*env)->GetMethodID(env, intentClass, "<init>", "(Ljava/lang/String;Landroid/net/Uri;)V");
+        jobject intent = (*env)->AllocObject(env, intentClass);
+
+        (*env)->CallVoidMethod(env, intent, newIntent, actionView, uri);
+        jclass activityClass = (*env)->FindClass(env, "android/app/Activity");
+        jmethodID startActivity = (*env)->GetMethodID(env, activityClass, "startActivity", "(Landroid/content/Intent;)V");
+        (*env)->CallVoidMethod(env, CORE.Android.app->activity->clazz, startActivity, intent);
+
+        (*vm)->DetachCurrentThread(vm);
 #endif
     }
 }
@@ -4162,7 +4191,7 @@ static bool InitGraphicsDevice(int width, int height)
         glfwSwapInterval(1);
         TRACELOG(LOG_INFO, "DISPLAY: Trying to enable VSYNC");
     }
-    
+
     int fbWidth = CORE.Window.screen.width;
     int fbHeight = CORE.Window.screen.height;
 
@@ -4187,7 +4216,7 @@ static bool InitGraphicsDevice(int width, int height)
     CORE.Window.render.height = fbHeight;
     CORE.Window.currentFbo.width = fbWidth;
     CORE.Window.currentFbo.height = fbHeight;
-    
+
     TRACELOG(LOG_INFO, "DISPLAY: Device initialized successfully");
     TRACELOG(LOG_INFO, "    > Display size: %i x %i", CORE.Window.display.width, CORE.Window.display.height);
     TRACELOG(LOG_INFO, "    > Screen size:  %i x %i", CORE.Window.screen.width, CORE.Window.screen.height);
@@ -4601,7 +4630,7 @@ static bool InitGraphicsDevice(int width, int height)
         CORE.Window.render.height = CORE.Window.screen.height;
         CORE.Window.currentFbo.width = CORE.Window.render.width;
         CORE.Window.currentFbo.height = CORE.Window.render.height;
-        
+
         TRACELOG(LOG_INFO, "DISPLAY: Device initialized successfully");
         TRACELOG(LOG_INFO, "    > Display size: %i x %i", CORE.Window.display.width, CORE.Window.display.height);
         TRACELOG(LOG_INFO, "    > Screen size:  %i x %i", CORE.Window.screen.width, CORE.Window.screen.height);
@@ -4940,7 +4969,7 @@ void PollInputEvents(void)
 
     // Register previous touch states
     for (int i = 0; i < MAX_TOUCH_POINTS; i++) CORE.Input.Touch.previousTouchState[i] = CORE.Input.Touch.currentTouchState[i];
-    
+
     // Reset touch positions
     // TODO: It resets on PLATFORM_WEB the mouse position and not filled again until a move-event,
     // so, if mouse is not moved it returns a (0, 0) position... this behaviour should be reviewed!
@@ -5019,8 +5048,8 @@ void PollInputEvents(void)
             }
 
             // Register buttons for 2nd triggers (because GLFW doesn't count these as buttons but rather axis)
-            CORE.Input.Gamepad.currentButtonState[i][GAMEPAD_BUTTON_LEFT_TRIGGER_2] = (char)(CORE.Input.Gamepad.axisState[i][GAMEPAD_AXIS_LEFT_TRIGGER] > 0.1);
-            CORE.Input.Gamepad.currentButtonState[i][GAMEPAD_BUTTON_RIGHT_TRIGGER_2] = (char)(CORE.Input.Gamepad.axisState[i][GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.1);
+            CORE.Input.Gamepad.currentButtonState[i][GAMEPAD_BUTTON_LEFT_TRIGGER_2] = (char)(CORE.Input.Gamepad.axisState[i][GAMEPAD_AXIS_LEFT_TRIGGER] > 0.1f);
+            CORE.Input.Gamepad.currentButtonState[i][GAMEPAD_BUTTON_RIGHT_TRIGGER_2] = (char)(CORE.Input.Gamepad.axisState[i][GAMEPAD_AXIS_RIGHT_TRIGGER] > 0.1f);
 
             CORE.Input.Gamepad.axisCount = GLFW_GAMEPAD_AXIS_LAST + 1;
         }
@@ -5224,7 +5253,7 @@ static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
         CORE.Input.Keyboard.keyPressedQueue[CORE.Input.Keyboard.keyPressedQueueCount] = key;
         CORE.Input.Keyboard.keyPressedQueueCount++;
     }
-    
+
     // Check the exit key to set close window
     if ((key == CORE.Input.Keyboard.exitKey) && (action == GLFW_PRESS)) glfwSetWindowShouldClose(CORE.Window.handle, GLFW_TRUE);
 
@@ -6580,7 +6609,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
         TRACELOG(LOG_TRACE, "DISPLAY: DRM mode: %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh,
             (mode->flags & DRM_MODE_FLAG_INTERLACE) ? "interlaced" : "progressive");
 
-        if ((mode->hdisplay < width) || (mode->vdisplay < height) | (mode->vrefresh < fps))
+        if ((mode->hdisplay < width) || (mode->vdisplay < height) || (mode->vrefresh < fps))
         {
             TRACELOG(LOG_TRACE, "DISPLAY: DRM mode is too small");
             continue;
@@ -6618,6 +6647,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
 
 #if defined(SUPPORT_EVENTS_AUTOMATION)
 // NOTE: Loading happens over AutomationEvent *events
+// TODO: This system should probably be redesigned
 static void LoadAutomationEvents(const char *fileName)
 {
     //unsigned char fileId[4] = { 0 };
