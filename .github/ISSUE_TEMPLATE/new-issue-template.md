@@ -1,11 +1,12 @@
 ---
 name: new issue template
-about: generic template for new issues
+about: gulrak/raylib template for new issues specific to this fork
 title: "[module] Short description of the issue/bug/feature"
 labels: ''
 assignees: ''
 
 ---
+**ATTENTION: This fork of raylib is not the official version and in no means replacing it, its main purpose is to fix issues that are out of scope in the official raylib, mainly macOS related stuff, so be warned that I will close issues that I think should be reported [there](https://github.com/raysan5/raylib/issues)**
 
 **WARNING: Please, read this note carefully before submitting a new issue:**
 
@@ -22,6 +23,7 @@ Please, before submitting a new issue verify and check:
  - [ ] I tested it on latest raylib version from master branch
  - [ ] I checked there is no similar issue already reported
  - [ ] My code has no errors or misuse of raylib
+ - [ ] The issue is related to this forks purpose (mainly macOS) and not a regular raylib issue
 
 ### Issue description
 
