@@ -1425,6 +1425,12 @@ void SetWindowState(unsigned int flags)
     {
         TRACELOG(LOG_WARNING, "RPI: Interlaced mode can only by configured before window initialization");
     }
+
+    // State change: FLAG_COCOA_GRAPHICS_SWITCHING
+    if (((CORE.Window.flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0) && ((flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0))
+    {
+        TRACELOG(LOG_WARNING, "RPI: Graphics switching mode can only by configured before window initialization");
+    }
 #endif
 }
 
@@ -1525,6 +1531,12 @@ void ClearWindowState(unsigned int flags)
     if (((CORE.Window.flags & FLAG_INTERLACED_HINT) > 0) && ((flags & FLAG_INTERLACED_HINT) > 0))
     {
         TRACELOG(LOG_WARNING, "RPI: Interlaced mode can only by configured before window initialization");
+    }
+
+    // State change: FLAG_COCOA_GRAPHICS_SWITCHING
+    if (((CORE.Window.flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0) && ((flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0))
+    {
+        TRACELOG(LOG_WARNING, "RPI: Graphics switching mode can only by configured before window initialization");
     }
 #endif
 }
@@ -4017,6 +4029,9 @@ static bool InitGraphicsDevice(int width, int height)
     #endif
     }
     else glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+    #if defined(__APPLE__)
+    if ((CORE.Window.flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0) glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_TRUE);
+    #endif
 #endif
 
     if (CORE.Window.flags & FLAG_MSAA_4X_HINT)
