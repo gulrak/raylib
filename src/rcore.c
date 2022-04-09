@@ -2763,8 +2763,14 @@ void SetConfigFlags(unsigned int flags)
 void TakeScreenshot(const char *fileName)
 {
 #if defined(SUPPORT_MODULE_RTEXTURES)
-    unsigned char *imgData = rlReadScreenPixels(CORE.Window.render.width, CORE.Window.render.height);
-    Image image = { imgData, CORE.Window.render.width, CORE.Window.render.height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
+#ifndef __APPLE__
+    int width = CORE.Window.render.width, height = CORE.Window.render.height;
+#else
+    int width, height;
+    glfwGetFramebufferSize(glfwGetCurrentContext(), &width, &height);
+#endif
+    unsigned char *imgData = rlReadScreenPixels(width, height);
+    Image image = { imgData, width, height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
 
     char path[2048] = { 0 };
     strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, fileName));
