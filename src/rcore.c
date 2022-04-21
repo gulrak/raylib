@@ -2042,8 +2042,15 @@ void EndDrawing(void)
         {
             // Get image data for the current frame (from backbuffer)
             // NOTE: This process is quite slow... :(
-            unsigned char *screenData = rlReadScreenPixels(CORE.Window.screen.width, CORE.Window.screen.height);
-            msf_gif_frame(&gifState, screenData, 10, 16, CORE.Window.screen.width*4);
+#ifndef __APPLE__
+            int width = CORE.Window.render.width, height = CORE.Window.render.height;
+#else
+            int width, height;
+            glfwGetFramebufferSize(glfwGetCurrentContext(), &width, &height);
+#endif
+
+            unsigned char *screenData = rlReadScreenPixels(width, height);
+            msf_gif_frame(&gifState, screenData, 10, 16, width*4);
 
             RL_FREE(screenData);    // Free image data
         }
@@ -5305,8 +5312,13 @@ static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
             {
                 gifRecording = true;
                 gifFrameCounter = 0;
-
-                msf_gif_begin(&gifState, CORE.Window.screen.width, CORE.Window.screen.height);
+#ifndef __APPLE__
+                int width = CORE.Window.render.width, height = CORE.Window.render.height;
+#else
+                int width, height;
+                glfwGetFramebufferSize(glfwGetCurrentContext(), &width, &height);
+#endif
+                msf_gif_begin(&gifState, width, height);
                 screenshotCounter++;
 
                 TRACELOG(LOG_INFO, "SYSTEM: Start animated GIF recording: %s", TextFormat("screenrec%03i.gif", screenshotCounter));
