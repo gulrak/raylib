@@ -222,7 +222,7 @@
             unsigned int __stdcall timeEndPeriod(unsigned int uPeriod);
         #endif
     #endif
-    #if defined(__linux__) || defined(__FreeBSD__)
+    #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
         #include <sys/time.h>               // Required for: timespec, nanosleep(), select() - POSIX
 
         //#define GLFW_EXPOSE_NATIVE_X11      // WARNING: Exposing Xlib.h > X.h results in dup symbols for Font type
@@ -394,6 +394,7 @@ typedef struct CoreData {
         bool fullscreen;                    // Check if fullscreen mode is enabled
         bool shouldClose;                   // Check if window set for closing
         bool resizedLastFrame;              // Check if window has been resized last frame
+        bool eventWaiting;                  // Wait for events before ending frame
 
         Point position;                     // Window position on screen (required on fullscreen toggle)
         Size display;                       // Display width and height (monitor, device-screen, LCD, ...)
@@ -754,13 +755,16 @@ void InitWindow(int width, int height, const char *title)
 #endif
 
     if ((title != NULL) && (title[0] != 0)) CORE.Window.title = title;
-    
+
     // Initialize global input state
     memset(&CORE.Input, 0, sizeof(CORE.Input));
     CORE.Input.Keyboard.exitKey = KEY_ESCAPE;
     CORE.Input.Mouse.scale = (Vector2){ 1.0f, 1.0f };
     CORE.Input.Mouse.cursor = MOUSE_CURSOR_ARROW;
     CORE.Input.Gamepad.lastButtonPressed = -1;
+#if defined(SUPPORT_EVENTS_WAITING)
+    CORE.Window.eventWaiting = true;
+#endif
 
 #if defined(PLATFORM_ANDROID)
     CORE.Window.screen.width = width;
@@ -1184,7 +1188,7 @@ void ToggleFullscreen(void)
 
         int monitorCount = 0;
         int monitorIndex = GetCurrentMonitor();
-        GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);      
+        GLFWmonitor **monitors = glfwGetMonitors(&monitorCount);
 
         // Use current monitor, so we correctly get the display the window is on
         GLFWmonitor *monitor = (monitorIndex < monitorCount)? monitors[monitorIndex] : NULL;
@@ -1911,6 +1915,29 @@ const char *GetMonitorName(int monitor)
     return "";
 }
 
+// Set clipboard text content
+void SetClipboardText(const char *text)
+{
+#if defined(PLATFORM_DESKTOP)
+    glfwSetClipboardString(CORE.Window.handle, text);
+#endif
+#if defined(PLATFORM_WEB)
+    emscripten_run_script(TextFormat("navigator.clipboard.writeText('%s')", text));
+#endif
+}
+
+// Enable waiting for events on EndDrawing(), no automatic event polling
+void EnableEventWaiting(void)
+{
+    CORE.Window.eventWaiting = true;
+}
+
+// Disable waiting for events on EndDrawing(), automatic events polling
+RLAPI void DisableEventWaiting(void)
+{
+    CORE.Window.eventWaiting = false;
+}
+
 // Get clipboard text content
 // NOTE: returned string is allocated and freed by GLFW
 const char *GetClipboardText(void)
@@ -1924,16 +1951,7 @@ const char *GetClipboardText(void)
     return NULL;
 }
 
-// Set clipboard text content
-void SetClipboardText(const char *text)
-{
-#if defined(PLATFORM_DESKTOP)
-    glfwSetClipboardString(CORE.Window.handle, text);
-#endif
-#if defined(PLATFORM_WEB)
-    emscripten_run_script(TextFormat("navigator.clipboard.writeText('%s')", text));
-#endif
-}
+
 
 // Show mouse cursor
 void ShowCursor(void)
@@ -2043,8 +2061,9 @@ void EndDrawing(void)
         {
             // Get image data for the current frame (from backbuffer)
             // NOTE: This process is quite slow... :(
-            unsigned char *screenData = rlReadScreenPixels(CORE.Window.screen.width, CORE.Window.screen.height);
-            msf_gif_frame(&gifState, screenData, 10, 16, CORE.Window.screen.width*4);
+            Vector2 scale = GetWindowScaleDPI();
+            unsigned char *screenData = rlReadScreenPixels(CORE.Window.render.width*scale.x, CORE.Window.render.height*scale.y);
+            msf_gif_frame(&gifState, screenData, 10, 16, CORE.Window.render.width*scale.x*4);
 
             RL_FREE(screenData);    // Free image data
         }
@@ -2766,8 +2785,9 @@ void SetConfigFlags(unsigned int flags)
 void TakeScreenshot(const char *fileName)
 {
 #if defined(SUPPORT_MODULE_RTEXTURES)
-    unsigned char *imgData = rlReadScreenPixels(CORE.Window.render.width, CORE.Window.render.height);
-    Image image = { imgData, CORE.Window.render.width, CORE.Window.render.height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
+    Vector2 scale = GetWindowScaleDPI();
+    unsigned char *imgData = rlReadScreenPixels(CORE.Window.render.width*scale.x, CORE.Window.render.height*scale.y);
+    Image image = { imgData, CORE.Window.render.width*scale.x, CORE.Window.render.height*scale.y, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8 };
 
     char path[2048] = { 0 };
     strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, fileName));
@@ -2922,7 +2942,7 @@ const char *GetFileName(const char *filePath)
 // Get filename string without extension (uses static string)
 const char *GetFileNameWithoutExt(const char *filePath)
 {
-    #define MAX_FILENAMEWITHOUTEXT_LENGTH   128
+    #define MAX_FILENAMEWITHOUTEXT_LENGTH   256
 
     static char fileName[MAX_FILENAMEWITHOUTEXT_LENGTH] = { 0 };
     memset(fileName, 0, MAX_FILENAMEWITHOUTEXT_LENGTH);
@@ -3201,7 +3221,7 @@ long GetFileModTime(const char *fileName)
     return 0;
 }
 
-// Compress data (DEFLATE algorythm)
+// Compress data (DEFLATE algorithm)
 unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDataSize)
 {
     #define COMPRESSION_QUALITY_DEFLATE  8
@@ -3221,7 +3241,7 @@ unsigned char *CompressData(const unsigned char *data, int dataSize, int *compDa
     return compData;
 }
 
-// Decompress data (DEFLATE algorythm)
+// Decompress data (DEFLATE algorithm)
 unsigned char *DecompressData(const unsigned char *compData, int compDataSize, int *dataSize)
 {
     unsigned char *data = NULL;
@@ -3461,7 +3481,7 @@ void OpenURL(const char *url)
     #if defined(_WIN32)
         sprintf(cmd, "explorer \"%s\"", url);
     #endif
-    #if defined(__linux__) || defined(__FreeBSD__)
+    #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)
         sprintf(cmd, "xdg-open '%s'", url); // Alternatives: firefox, x-www-browser
     #endif
     #if defined(__APPLE__)
@@ -4837,7 +4857,7 @@ void WaitTime(float ms)
     #if defined(_WIN32)
         Sleep((unsigned int)ms);
     #endif
-    #if defined(__linux__) || defined(__FreeBSD__) || defined(__EMSCRIPTEN__)
+    #if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__EMSCRIPTEN__)
         struct timespec req = { 0 };
         time_t sec = (int)(ms/1000.0f);
         ms -= (sec*1000);
@@ -5053,11 +5073,8 @@ void PollInputEvents(void)
 
     CORE.Window.resizedLastFrame = false;
 
-#if defined(SUPPORT_EVENTS_WAITING)
-    glfwWaitEvents();
-#else
-    glfwPollEvents();       // Register keyboard/mouse events (callbacks)... and window events!
-#endif
+    if (CORE.Window.eventWaiting) glfwWaitEvents();     // Wait for in input events before continue (drawing is paused)
+    else glfwPollEvents();      // Poll input events: keyboard/mouse/window events (callbacks)
 #endif  // PLATFORM_DESKTOP
 
 #if defined(PLATFORM_WEB)
@@ -5281,7 +5298,8 @@ static void KeyCallback(GLFWwindow *window, int key, int scancode, int action, i
                 gifRecording = true;
                 gifFrameCounter = 0;
 
-                msf_gif_begin(&gifState, CORE.Window.screen.width, CORE.Window.screen.height);
+                Vector2 scale = GetWindowScaleDPI();
+                msf_gif_begin(&gifState, CORE.Window.render.width*scale.x, CORE.Window.render.height*scale.y);
                 screenshotCounter++;
 
                 TRACELOG(LOG_INFO, "SYSTEM: Start animated GIF recording: %s", TextFormat("screenrec%03i.gif", screenshotCounter));
@@ -6155,7 +6173,7 @@ static void ConfigureEvdevDevice(char *device)
 
     // Decide what to do with the device
     //-------------------------------------------------------------------------------------------------------
-    if (worker->isKeyboard && CORE.Input.Keyboard.fd == -1)
+    if (worker->isKeyboard && (CORE.Input.Keyboard.fd == -1))
     {
         // Use the first keyboard encountered. This assumes that a device that says it's a keyboard is just a
         // keyboard. The keyboard is polled synchronously, whereas other input devices are polled in separate
@@ -6606,7 +6624,7 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
         TRACELOG(LOG_TRACE, "DISPLAY: DRM mode: %d %ux%u@%u %s", i, mode->hdisplay, mode->vdisplay, mode->vrefresh,
             (mode->flags & DRM_MODE_FLAG_INTERLACE) ? "interlaced" : "progressive");
 
-        if ((mode->hdisplay < width) || (mode->vdisplay < height) || (mode->vrefresh < fps))
+        if ((mode->hdisplay < width) || (mode->vdisplay < height))
         {
             TRACELOG(LOG_TRACE, "DISPLAY: DRM mode is too small");
             continue;
@@ -6618,23 +6636,22 @@ static int FindNearestConnectorMode(const drmModeConnector *connector, uint widt
             continue;
         }
 
-        if ((mode->hdisplay >= width) && (mode->vdisplay >= height) && (mode->vrefresh >= fps))
+        if (nearestIndex < 0)
         {
-            const int widthDiff = mode->hdisplay - width;
-            const int heightDiff = mode->vdisplay - height;
-            const int fpsDiff = mode->vrefresh - fps;
+            nearestIndex = i;
+            continue;
+        }
 
-            if (nearestIndex < 0)
-            {
-                nearestIndex = i;
-                continue;
-            }
+        const int widthDiff = abs(mode->hdisplay - width);
+        const int heightDiff = abs(mode->vdisplay - height);
+        const int fpsDiff = abs(mode->vrefresh - fps);
 
-            const int nearestWidthDiff = CORE.Window.connector->modes[nearestIndex].hdisplay - width;
-            const int nearestHeightDiff = CORE.Window.connector->modes[nearestIndex].vdisplay - height;
-            const int nearestFpsDiff = CORE.Window.connector->modes[nearestIndex].vrefresh - fps;
+        const int nearestWidthDiff = abs(CORE.Window.connector->modes[nearestIndex].hdisplay - width);
+        const int nearestHeightDiff = abs(CORE.Window.connector->modes[nearestIndex].vdisplay - height);
+        const int nearestFpsDiff = abs(CORE.Window.connector->modes[nearestIndex].vrefresh - fps);
 
-            if ((widthDiff < nearestWidthDiff) || (heightDiff < nearestHeightDiff) || (fpsDiff < nearestFpsDiff)) nearestIndex = i;
+        if ((widthDiff < nearestWidthDiff) || (heightDiff < nearestHeightDiff) || (fpsDiff < nearestFpsDiff)) {
+            nearestIndex = i;
         }
     }
 

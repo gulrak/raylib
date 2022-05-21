@@ -247,10 +247,6 @@ typedef struct tagBITMAPINFOHEADER {
     #include "external/dr_flac.h"       // FLAC loading functions
 #endif
 
-#if defined(_MSC_VER)
-    #undef bool
-#endif
-
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
@@ -314,7 +310,7 @@ typedef enum {
 // Audio buffer struct
 struct rAudioBuffer {
     ma_data_converter converter;    // Audio data converter
-    
+
     AudioCallback callback;   // Audio buffer callback for buffer filling on audio threads
     rAudioProcessor *processor;     // Audio processor
 
@@ -338,7 +334,7 @@ struct rAudioBuffer {
     rAudioBuffer *prev;             // Previous audio buffer on the list
 };
 
-// Audio processor struct 
+// Audio processor struct
 // NOTE: Useful to apply effects to an AudioBuffer
 struct rAudioProcessor {
     AudioCallback process;          // Processor callback function
@@ -566,14 +562,14 @@ AudioBuffer *LoadAudioBuffer(ma_format format, ma_uint32 channels, ma_uint32 sam
     audioBuffer->volume = 1.0f;
     audioBuffer->pitch = 1.0f;
     audioBuffer->pan = 0.5f;
-    
+
     audioBuffer->callback = NULL;
     audioBuffer->processor = NULL;
 
     audioBuffer->playing = false;
     audioBuffer->paused = false;
     audioBuffer->looping = false;
- 
+
     audioBuffer->usage = usage;
     audioBuffer->frameCursorPos = 0;
     audioBuffer->sizeInFrames = sizeInFrames;
@@ -1206,8 +1202,7 @@ Wave WaveCopy(Wave wave)
 // NOTE: Security check in case of out-of-range
 void WaveCrop(Wave *wave, int initSample, int finalSample)
 {
-    if ((initSample >= 0) && (initSample < finalSample) &&
-        (finalSample > 0) && ((unsigned int)finalSample < (wave->frameCount*wave->channels)))
+    if ((initSample >= 0) && (initSample < finalSample) && ((unsigned int)finalSample < (wave->frameCount*wave->channels)))
     {
         int sampleCount = finalSample - initSample;
 
@@ -1518,16 +1513,14 @@ Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data,
             jar_xm_set_max_loop_count(ctxXm, 0);    // Set infinite number of loops
 
             unsigned int bits = 32;
-            if (AUDIO_DEVICE_FORMAT == ma_format_s16)
-                bits = 16;
-            else if (AUDIO_DEVICE_FORMAT == ma_format_u8)
-                bits = 8;
+            if (AUDIO_DEVICE_FORMAT == ma_format_s16) bits = 16;
+            else if (AUDIO_DEVICE_FORMAT == ma_format_u8) bits = 8;
 
             // NOTE: Only stereo is supported for XM
             music.stream = LoadAudioStream(AUDIO.System.device.sampleRate, bits, 2);
             music.frameCount = (unsigned int)jar_xm_get_remaining_samples(ctxXm);    // NOTE: Always 2 channels (stereo)
             music.looping = true;   // Looping enabled by default
-            jar_xm_reset(ctxXm);   // make sure we start at the beginning of the song
+            jar_xm_reset(ctxXm);    // make sure we start at the beginning of the song
 
             music.ctxData = ctxXm;
             musicLoaded = true;
@@ -1548,7 +1541,7 @@ Music LoadMusicStreamFromMemory(const char *fileType, const unsigned char *data,
         for (int i = 0; i < it; i++) newData[i] = data[i];
 
         // Memory loaded version for jar_mod_load_file()
-        if (dataSize && dataSize < 32*1024*1024)
+        if (dataSize && (dataSize < 32*1024*1024))
         {
             ctxMod->modfilesize = dataSize;
             ctxMod->modfile = newData;
@@ -2119,10 +2112,10 @@ static ma_uint32 ReadAudioBufferFramesInInternalFormat(AudioBuffer *audioBuffer,
     {
         audioBuffer->callback(framesOut, frameCount);
         audioBuffer->framesProcessed += frameCount;
-        
+
         return frameCount;
     }
-    
+
     ma_uint32 subBufferSizeInFrames = (audioBuffer->sizeInFrames > 1)? audioBuffer->sizeInFrames/2 : audioBuffer->sizeInFrames;
     ma_uint32 currentSubBufferIndex = audioBuffer->frameCursorPos/subBufferSizeInFrames;
 
