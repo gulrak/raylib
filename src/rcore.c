@@ -4849,6 +4849,7 @@ void WaitTime(float ms)
     while ((currentTime - previousTime) < ms/1000.0f) currentTime = GetTime();
 #else
     #if defined(SUPPORT_PARTIALBUSY_WAIT_LOOP)
+        double destTime = GetTime() + ms/1000.0f;
         double busyWait = ms*0.05;     // NOTE: We are using a busy wait of 5% of the time
         ms -= (float)busyWait;
     #endif
@@ -4872,11 +4873,7 @@ void WaitTime(float ms)
     #endif
 
     #if defined(SUPPORT_PARTIALBUSY_WAIT_LOOP)
-        double previousTime = GetTime();
-        double currentTime = 0.0;
-
-        // Partial busy wait loop (only a fraction of the total wait time)
-        while ((currentTime - previousTime) < (busyWait/1000.0f)) currentTime = GetTime();
+        while (GetTime() < destTime) { }
     #endif
 #endif
 }
@@ -6076,12 +6073,13 @@ static void ConfigureEvdevDevice(char *device)
     fd = open(device, O_RDONLY | O_NONBLOCK);
     if (fd < 0)
     {
-        TRACELOG(LOG_WARNING, "RPI: Failed to open input device %s", device);
+        TRACELOG(LOG_WARNING, "RPI: Failed to open input device: %s", device);
         return;
     }
     worker->fd = fd;
 
     // Grab number on the end of the devices name "event<N>"
+    // TODO: Grab number on the end of the device name "mouse<N>"
     int devNum = 0;
     char *ptrDevName = strrchr(device, 't');
     worker->eventNum = -1;
@@ -6090,6 +6088,7 @@ static void ConfigureEvdevDevice(char *device)
     {
         if (sscanf(ptrDevName, "t%d", &devNum) == 1) worker->eventNum = devNum;
     }
+    else worker->eventNum = 0;      // HACK for mouse0 device!
 
     // At this point we have a connection to the device, but we don't yet know what the device is.
     // It could be many things, even as simple as a power button...
