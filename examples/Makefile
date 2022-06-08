@@ -226,7 +226,7 @@ ifeq ($(PLATFORM),PLATFORM_DRM)
 endif
 
 # Define include paths for required headers: INCLUDE_PATHS
-# NOTE: Some external/extras libraries could be required (stb, physac, easings...)
+# NOTE: Some external/extras libraries could be required (stb, easings...)
 #------------------------------------------------------------------------------------------------
 INCLUDE_PATHS = -I. -I$(RAYLIB_PATH)/src -I$(RAYLIB_PATH)/src/external -I$(RAYLIB_PATH)/src/extras
 
@@ -306,8 +306,6 @@ ifeq ($(PLATFORM),PLATFORM_DESKTOP)
         # Libraries for Windows desktop compilation
         # NOTE: WinMM library required to set high-res timer resolution
         LDLIBS = -lraylib -lopengl32 -lgdi32 -lwinmm
-        # Required for physac examples
-        LDLIBS += -static -lpthread
     endif
     ifeq ($(PLATFORM_OS),LINUX)
         # Libraries for Debian GNU/Linux desktop compiling
@@ -494,20 +492,12 @@ AUDIO = \
     audio/audio_sound_loading \
     audio/audio_multichannel_sound
 
-PHYSICS = \
-    physics/physics_demo \
-    physics/physics_friction \
-    physics/physics_movement \
-    physics/physics_restitution \
-    physics/physics_shatter
-
-
 CURRENT_MAKEFILE = $(lastword $(MAKEFILE_LIST))
 
 # Define processes to execute
 #------------------------------------------------------------------------------------------------
 # Default target entry
-all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO) $(PHYSICS)
+all: $(CORE) $(SHAPES) $(TEXT) $(TEXTURES) $(MODELS) $(SHADERS) $(AUDIO)
 
 core: $(CORE)
 shapes: $(SHAPES)
@@ -516,7 +506,6 @@ text: $(TEXT)
 models: $(MODELS)
 shaders: $(SHADERS)
 audio: $(AUDIO)
-physics: $(PHYSICS)
 
 # Generic compilation pattern
 # NOTE: Examples must be ready for Android compilation!
