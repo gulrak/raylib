@@ -482,6 +482,13 @@ typedef struct VrStereoConfig {
     float scaleIn[2];               // VR distortion scale in
 } VrStereoConfig;
 
+// File path list
+typedef struct FilePathList {
+    unsigned int capacity;          // Filepaths max entries
+    unsigned int count;             // Filepaths entries count
+    char **paths;                   // Filepaths entries
+} FilePathList;
+
 //----------------------------------------------------------------------------------
 // Enumerators Definition
 //----------------------------------------------------------------------------------
@@ -501,6 +508,7 @@ typedef enum {
     FLAG_WINDOW_ALWAYS_RUN  = 0x00000100,   // Set to allow windows running while minimized
     FLAG_WINDOW_TRANSPARENT = 0x00000010,   // Set to allow transparent framebuffer
     FLAG_WINDOW_HIGHDPI     = 0x00002000,   // Set to support HighDPI
+    FLAG_WINDOW_MOUSE_PASSTHROUGH = 0x00004000, // Set to support mouse passthrough, only supported when FLAG_WINDOW_UNDECORATED
     FLAG_MSAA_4X_HINT       = 0x00000020,   // Set to try enabling MSAA 4X
     FLAG_INTERLACED_HINT    = 0x00010000,   // Set to try enabling interlaced video format (for V3D)
     FLAG_COCOA_GRAPHICS_SWITCHING = 0x00800000 // Allow dynamic graphics hardware selection on macOS
@@ -891,8 +899,8 @@ typedef enum {
 typedef void (*TraceLogCallback)(int logLevel, const char *text, va_list args);  // Logging: Redirect trace log messages
 typedef unsigned char *(*LoadFileDataCallback)(const char *fileName, unsigned int *bytesRead);      // FileIO: Load binary data
 typedef bool (*SaveFileDataCallback)(const char *fileName, void *data, unsigned int bytesToWrite);  // FileIO: Save binary data
-typedef char *(*LoadFileTextCallback)(const char *fileName);       // FileIO: Load text data
-typedef bool (*SaveFileTextCallback)(const char *fileName, char *text);     // FileIO: Save text data
+typedef char *(*LoadFileTextCallback)(const char *fileName);            // FileIO: Load text data
+typedef bool (*SaveFileTextCallback)(const char *fileName, char *text); // FileIO: Save text data
 
 //------------------------------------------------------------------------------------
 // Global Variables Definition
@@ -1059,11 +1067,13 @@ RLAPI const char *GetPrevDirectoryPath(const char *dirPath);      // Get previou
 RLAPI const char *GetWorkingDirectory(void);                      // Get current working directory (uses static string)
 RLAPI const char *GetApplicationDirectory(void);                  // Get the directory if the running application (uses static string)
 RLAPI bool ChangeDirectory(const char *dir);                      // Change working directory, return true on success
-RLAPI char **LoadDirectoryFiles(const char *dirPath, int *count); // Load directory filepaths
-RLAPI void UnloadDirectoryFiles(void);                            // Unload directory filepaths
+RLAPI bool IsPathFile(const char *path);                          // Check if a given path is a file or a directory
+RLAPI FilePathList LoadDirectoryFiles(const char *dirPath);       // Load directory filepaths
+RLAPI FilePathList LoadDirectoryFilesEx(const char *basePath, const char *filter, bool scanSubdirs); // Load directory filepaths with extension filtering and recursive directory scan
+RLAPI void UnloadDirectoryFiles(FilePathList files);              // Unload filepaths
 RLAPI bool IsFileDropped(void);                                   // Check if a file has been dropped into window
-RLAPI char **LoadDroppedFiles(int *count);                        // Load dropped filepaths
-RLAPI void UnloadDroppedFiles(void);                              // Unload dropped filepaths
+RLAPI FilePathList LoadDroppedFiles(void);                        // Load dropped filepaths
+RLAPI void UnloadDroppedFiles(FilePathList files);                // Unload dropped filepaths
 RLAPI long GetFileModTime(const char *fileName);                  // Get file modification time (last write time)
 
 // Compression/Encoding functionality
@@ -1115,7 +1125,8 @@ RLAPI Vector2 GetMouseDelta(void);                            // Get mouse delta
 RLAPI void SetMousePosition(int x, int y);                    // Set mouse position XY
 RLAPI void SetMouseOffset(int offsetX, int offsetY);          // Set mouse offset
 RLAPI void SetMouseScale(float scaleX, float scaleY);         // Set mouse scaling
-RLAPI float GetMouseWheelMove(void);                          // Get mouse wheel movement Y
+RLAPI float GetMouseWheelMove(void);                          // Get mouse wheel movement for X or Y, whichever is larger
+RLAPI Vector2 GetMouseWheelMoveV(void);                       // Get mouse wheel movement for both X and Y
 RLAPI void SetMouseCursor(int cursor);                        // Set mouse cursor
 
 // Input-related functions: touch

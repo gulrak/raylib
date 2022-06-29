@@ -8,8 +8,8 @@
 #    PLATFORM_DESKTOP:  OSX/macOS (arm64, x86_64)
 #    PLATFORM_DESKTOP:  FreeBSD, OpenBSD, NetBSD, DragonFly
 #    PLATFORM_ANDROID:  Android (arm, i686, arm64, x86_64)
-#    PLATFORM_RPI:      Raspberry Pi (Raspbian)
-#    PLATFORM_DRM:      Linux native mode, including Raspberry Pi 4 with V3D fkms driver
+#    PLATFORM_RPI:      Raspberry Pi (deprecated - RPI OS Buster only)
+#    PLATFORM_DRM:      Linux native mode, including Raspberry Pi (RPI OS Bullseye)
 #    PLATFORM_WEB:      HTML5 (Chrome, Firefox)
 #
 #  Many thanks to Milan Nikolic (@gen2brain) for implementing Android platform pipeline.
@@ -738,7 +738,6 @@ ifeq ($(ROOT),root)
 		cp --update raylib.h $(RAYLIB_H_INSTALL_PATH)/raylib.h
 		cp --update raymath.h $(RAYLIB_H_INSTALL_PATH)/raymath.h
 		cp --update rlgl.h $(RAYLIB_H_INSTALL_PATH)/rlgl.h
-		cp --update extras/physac.h $(RAYLIB_H_INSTALL_PATH)/physac.h
 		@echo "raylib development files installed/updated!"
     else
 		@echo "This function currently works on GNU/Linux systems. Add yours today (^;"
@@ -766,7 +765,6 @@ ifeq ($(ROOT),root)
 		rm --force --interactive --verbose $(RAYLIB_H_INSTALL_PATH)/raylib.h
 		rm --force --interactive --verbose $(RAYLIB_H_INSTALL_PATH)/raymath.h
 		rm --force --interactive --verbose $(RAYLIB_H_INSTALL_PATH)/rlgl.h
-		rm --force --interactive --verbose $(RAYLIB_H_INSTALL_PATH)/physac.h
 		@echo "raylib development files removed!"
         else
 		@echo "This function currently works on GNU/Linux systems. Add yours today (^;"

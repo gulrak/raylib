@@ -939,7 +939,7 @@ bool ExportFontAsCode(Font font, const char *fileName)
     byteCount += sprintf(txtData + byteCount, "    Font font = { 0 };\n\n");
     byteCount += sprintf(txtData + byteCount, "    font.baseSize = %i;\n", font.baseSize);
     byteCount += sprintf(txtData + byteCount, "    font.glyphCount = %i;\n", font.glyphCount);
-    byteCount += sprintf(txtData + byteCount, "    font.glyphPadding = %i;\n\n", FONT_TTF_DEFAULT_CHARS_PADDING);
+    byteCount += sprintf(txtData + byteCount, "    font.glyphPadding = %i;\n\n", font.glyphPadding);
     byteCount += sprintf(txtData + byteCount, "    // Custom font loading\n");
 #if defined(SUPPORT_COMPRESSED_FONT_ATLAS)
     byteCount += sprintf(txtData + byteCount, "    // NOTE: Compressed font image data (DEFLATE), it requires DecompressData() function\n");
@@ -1051,7 +1051,7 @@ void DrawTextEx(Font font, const char *text, Vector2 position, float fontSize, f
         {
             // NOTE: Fixed line spacing of 1.5 line-height
             // TODO: Support custom line spacing defined by user
-            textOffsetY += (int)((font.baseSize + font.baseSize/2)*scaleFactor);
+            textOffsetY += (int)((font.baseSize + font.baseSize/2.0f)*scaleFactor);
             textOffsetX = 0.0f;
         }
         else
@@ -1123,7 +1123,7 @@ void DrawTextCodepoints(Font font, const int *codepoints, int count, Vector2 pos
         {
             // NOTE: Fixed line spacing of 1.5 line-height
             // TODO: Support custom line spacing defined by user
-            textOffsetY += (int)((font.baseSize + font.baseSize/2)*scaleFactor);
+            textOffsetY += (int)((font.baseSize + font.baseSize/2.0f)*scaleFactor);
             textOffsetX = 0.0f;
         }
         else
