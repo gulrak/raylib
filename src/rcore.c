@@ -4124,16 +4124,14 @@ static bool InitGraphicsDevice(int width, int height)
     #endif
     }
     else glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-<<<<<<< HEAD
-    #if defined(__APPLE__)
-    if ((CORE.Window.flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0) glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_TRUE);
-    #endif
-=======
-    
+        
     // Mouse passthrough
     if ((CORE.Window.flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0) glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
     else glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_FALSE);
->>>>>>> upstream/master
+
+    #if defined(__APPLE__)
+    if ((CORE.Window.flags & FLAG_COCOA_GRAPHICS_SWITCHING) > 0) glfwWindowHint(GLFW_COCOA_GRAPHICS_SWITCHING, GLFW_TRUE);
+    #endif
 #endif
 
     if (CORE.Window.flags & FLAG_MSAA_4X_HINT)
