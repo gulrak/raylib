@@ -1,11 +1,13 @@
 /*******************************************************************************************
 *
-*   raylib [shaders] example - mesh instancing
+*   raylib [shaders] example - Mesh instancing
 *
-*   This example has been created using raylib 3.7 (www.raylib.com)
-*   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
+*   Example originally created with raylib 3.7, last time updated with raylib 4.2
 *
 *   Example contributed by @seanpringle and reviewed by Max (@moliad) and Ramon Santamaria (@raysan5)
+*
+*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+*   BSD-like license that allows static linking with closed source software
 *
 *   Copyright (c) 2020-2022 @seanpringle, Max (@moliad) and Ramon Santamaria (@raysan5)
 *
@@ -19,7 +21,6 @@
 #include "rlights.h"
 
 #include <stdlib.h>         // Required for: calloc(), free()
-#include <math.h>           // Required for: 
 
 #if defined(PLATFORM_DESKTOP)
     #define GLSL_VERSION            330
@@ -27,7 +28,7 @@
     #define GLSL_VERSION            100
 #endif
 
-#define MAX_INSTANCES  8000
+#define MAX_INSTANCES  10000
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -87,7 +88,9 @@ int main(void)
     matInstances.shader = shader;
     matInstances.maps[MATERIAL_MAP_DIFFUSE].color = RED;
 
-    // Create a defult material with default internal shader for non-instanced mesh drawing
+    // Load default material (using raylib intenral default shader) for non-instanced mesh drawing
+    // WARNING: Default shader enables vertex color attribute BUT GenMeshCube() does not generate vertex colors, so,
+    // when drawing the color attribute is disabled and a default color value is provided as input for thevertex attribute
     Material matDefault = LoadMaterialDefault();
     matDefault.maps[MATERIAL_MAP_DIFFUSE].color = BLUE;
 

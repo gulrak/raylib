@@ -1,25 +1,28 @@
 /*******************************************************************************************
 *
-*   raylib [text] example - Draw 2D text in 3D
+*   raylib [text] example - Draw 3d
 *
-*   Draw a 2D text in 3D space, each letter is drawn in a quad (or 2 quads if backface is set)
+*   NOTE: Draw a 2D text in 3D space, each letter is drawn in a quad (or 2 quads if backface is set)
 *   where the texture coodinates of each quad map to the texture coordinates of the glyphs
 *   inside the font texture.
-*    A more efficient approach, i believe, would be to render the text in a render texture and
-*    map that texture to a plane and render that, or maybe a shader but my method allows more
-*    flexibility...for example to change position of each letter individually to make somethink
-*    like a wavy text effect.
+*
+*   A more efficient approach, i believe, would be to render the text in a render texture and
+*   map that texture to a plane and render that, or maybe a shader but my method allows more
+*   flexibility...for example to change position of each letter individually to make somethink
+*   like a wavy text effect.
 *    
-*    Special thanks to:
+*   Special thanks to:
 *        @Nighten for the DrawTextStyle() code https://github.com/NightenDushi/Raylib_DrawTextStyle
 *        Chris Camacho (codifies - http://bedroomcoders.co.uk/) for the alpha discard shader
 *
-*   This example has been created using raylib 3.5 (www.raylib.com)
-*   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
+*   Example originally created with raylib 3.5, last time updated with raylib 4.0
 *
-*   Example contributed by Vlad Adrian (@Demizdor) and reviewed by Ramon Santamaria (@raysan5)
+*   Example contributed by Vlad Adrian (@demizdor) and reviewed by Ramon Santamaria (@raysan5)
 *
-*   Copyright (C) 2021 Vlad Adrian (@Demizdor - https://github.com/Demizdor)
+*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
+*   BSD-like license that allows static linking with closed source software
+*
+*   Copyright (c) 2021-2022 Vlad Adrian (@demizdor)
 *
 ********************************************************************************************/
 
@@ -138,6 +141,8 @@ int main(void)
     {
         // Update
         //----------------------------------------------------------------------------------
+        UpdateCamera(&camera);
+        
         // Handle font files dropped
         if (IsFileDropped())
         {
@@ -262,7 +267,6 @@ int main(void)
         // Measure 3D text so we can center it
         tbox = MeasureTextWave3D(font, text, fontSize, fontSpacing, lineSpacing);
 
-        UpdateCamera(&camera);          // Update camera
         quads = 0;                      // Reset quad counter
         time += GetFrameTime();         // Update timer needed by `DrawTextWave3D()`
         //----------------------------------------------------------------------------------

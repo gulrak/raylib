@@ -57,9 +57,6 @@
 *       WARNING: Reconfiguring standard input could lead to undesired effects, like breaking other running processes or
 *       blocking the device if not restored properly. Use with care.
 *
-*   #define SUPPORT_MOUSE_CURSOR_POINT
-*       Draw a mouse pointer on screen
-*
 *   #define SUPPORT_BUSY_WAIT_LOOP
 *       Use busy wait loop for timing sync, if not defined, a high-resolution timer is setup and used
 *
@@ -79,9 +76,6 @@
 *       Support CompressData() and DecompressData() functions, those functions use zlib implementation
 *       provided by stb_image and stb_image_write libraries, so, those libraries must be enabled on textures module
 *       for linkage
-*
-*   #define SUPPORT_DATA_STORAGE
-*       Support saving binary data automatically to a generated storage.data file. This file is managed internally
 *
 *   #define SUPPORT_EVENTS_AUTOMATION
 *       Support automatic generated events, loading and recording of those events when required
@@ -330,12 +324,6 @@
 #endif
 #ifndef MAX_CHAR_PRESSED_QUEUE
     #define MAX_CHAR_PRESSED_QUEUE        16        // Maximum number of characters in the char input queue
-#endif
-
-#if defined(SUPPORT_DATA_STORAGE)
-    #ifndef STORAGE_DATA_FILE
-        #define STORAGE_DATA_FILE  "storage.data"   // Automatic storage filename
-    #endif
 #endif
 
 #ifndef MAX_DECOMPRESSION_SIZE
@@ -1423,7 +1411,7 @@ void SetWindowState(unsigned int flags)
     {
         TRACELOG(LOG_WARNING, "WINDOW: High DPI can only by configured before window initialization");
     }
-    
+
     // State change: FLAG_WINDOW_MOUSE_PASSTHROUGH
     if (((CORE.Window.flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) != (flags & FLAG_WINDOW_MOUSE_PASSTHROUGH)) && ((flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0))
     {
@@ -1537,7 +1525,7 @@ void ClearWindowState(unsigned int flags)
     {
         TRACELOG(LOG_WARNING, "WINDOW: High DPI can only by configured before window initialization");
     }
-    
+
     // State change: FLAG_WINDOW_MOUSE_PASSTHROUGH
     if (((CORE.Window.flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0) && ((flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0))
     {
@@ -1783,7 +1771,7 @@ int GetMonitorWidth(int monitor)
     if ((monitor >= 0) && (monitor < monitorCount))
     {
         const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor]);
-        
+
         if (mode) return mode->width;
         else TRACELOG(LOG_WARNING, "GLFW: Failed to find video mode for selected monitor");
     }
@@ -1802,7 +1790,7 @@ int GetMonitorHeight(int monitor)
     if ((monitor >= 0) && (monitor < monitorCount))
     {
         const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor]);
-        
+
         if (mode) return mode->height;
         else TRACELOG(LOG_WARNING, "GLFW: Failed to find video mode for selected monitor");
     }
@@ -2054,15 +2042,6 @@ void BeginDrawing(void)
 void EndDrawing(void)
 {
     rlDrawRenderBatchActive();      // Update and draw internal render batch
-
-#if defined(SUPPORT_MODULE_RSHAPES) && defined(SUPPORT_MOUSE_CURSOR_POINT)
-    // Draw a small rectangle on mouse position for user reference
-    if (!CORE.Input.Mouse.cursorHidden)
-    {
-        DrawRectangle(CORE.Input.Mouse.currentPosition.x, CORE.Input.Mouse.currentPosition.y, 3, 3, MAROON);    // WARNING: Module required: rshapes
-        rlDrawRenderBatchActive();  // Update and draw internal render batch
-    }
-#endif
 
 #if defined(SUPPORT_GIF_RECORDING)
     // Draw record indicator
@@ -2865,7 +2844,7 @@ bool FileExists(const char *fileName)
 bool IsFileExtension(const char *fileName, const char *ext)
 {
     #define MAX_FILE_EXTENSION_SIZE  16
-    
+
     bool result = false;
     const char *fileExt = GetFileExtension(fileName);
 
@@ -3146,14 +3125,14 @@ FilePathList LoadDirectoryFiles(const char *dirPath)
 {
     FilePathList files = { 0 };
     unsigned int fileCounter = 0;
-    
+
     struct dirent *entity;
     DIR *dir = opendir(dirPath);
 
     if (dir != NULL) // It's a directory
     {
         // SCAN 1: Count files
-        while ((entity = readdir(dir)) != NULL) 
+        while ((entity = readdir(dir)) != NULL)
         {
             // NOTE: We skip '.' (current dir) and '..' (parent dir) filepaths
             if ((strcmp(entity->d_name, ".") != 0) && (strcmp(entity->d_name, "..") != 0)) fileCounter++;
@@ -3162,19 +3141,19 @@ FilePathList LoadDirectoryFiles(const char *dirPath)
         // Memory allocation for dirFileCount
         files.capacity = fileCounter;
         files.paths = (char **)RL_MALLOC(files.capacity*sizeof(char *));
-        for (int i = 0; i < files.capacity; i++) files.paths[i] = (char *)RL_MALLOC(MAX_FILEPATH_LENGTH*sizeof(char));
+        for (unsigned int i = 0; i < files.capacity; i++) files.paths[i] = (char *)RL_MALLOC(MAX_FILEPATH_LENGTH*sizeof(char));
 
         closedir(dir);
-        
+
         // SCAN 2: Read filepaths
         // NOTE: Directory paths are also registered
         ScanDirectoryFiles(dirPath, &files, NULL);
-        
+
         // Security check: read files.count should match fileCounter
         if (files.count != files.capacity) TRACELOG(LOG_WARNING, "FILEIO: Read files count do not match capacity allocated");
     }
     else TRACELOG(LOG_WARNING, "FILEIO: Failed to open requested directory");  // Maybe it's a file...
-    
+
     return files;
 }
 
@@ -3186,7 +3165,7 @@ FilePathList LoadDirectoryFilesEx(const char *basePath, const char *filter, bool
 
     files.capacity = MAX_FILEPATH_CAPACITY;
     files.paths = (char **)RL_CALLOC(files.capacity, sizeof(char *));
-    for (int i = 0; i < files.capacity; i++) files.paths[i] = (char *)RL_CALLOC(MAX_FILEPATH_LENGTH, sizeof(char));
+    for (unsigned int i = 0; i < files.capacity; i++) files.paths[i] = (char *)RL_CALLOC(MAX_FILEPATH_LENGTH, sizeof(char));
 
     // WARNING: basePath is always prepended to scanned paths
     if (scanSubdirs) ScanDirectoryFilesRecursively(basePath, &files, filter);
@@ -3200,7 +3179,7 @@ void UnloadDirectoryFiles(FilePathList files)
 {
     if (files.capacity > 0)
     {
-        for (int i = 0; i < files.capacity; i++) RL_FREE(files.paths[i]);
+        for (unsigned int i = 0; i < files.capacity; i++) RL_FREE(files.paths[i]);
 
         RL_FREE(files.paths);
     }
@@ -3247,13 +3226,13 @@ FilePathList LoadDroppedFiles(void)
 void UnloadDroppedFiles(FilePathList files)
 {
     // WARNING: files pointers are the same as internal ones
-    
+
     if (files.count > 0)
     {
-        for (int i = 0; i < files.count; i++) RL_FREE(files.paths[i]);
+        for (unsigned int i = 0; i < files.count; i++) RL_FREE(files.paths[i]);
 
         RL_FREE(files.paths);
-        
+
         CORE.Window.dropFileCount = 0;
         CORE.Window.dropFilepaths = NULL;
     }
@@ -3302,7 +3281,7 @@ unsigned char *DecompressData(const unsigned char *compData, int compDataSize, i
 #if defined(SUPPORT_COMPRESSION_API)
     // Decompress data from a valid DEFLATE stream
     data = RL_CALLOC(MAX_DECOMPRESSION_SIZE*1024*1024, 1);
-    int length = sinflate(data, MAX_DECOMPRESSION_SIZE, compData, compDataSize);
+    int length = sinflate(data, MAX_DECOMPRESSION_SIZE*1024*1024, compData, compDataSize);
     unsigned char *temp = RL_REALLOC(data, length);
 
     if (temp != NULL) data = temp;
@@ -3408,110 +3387,6 @@ unsigned char *DecodeDataBase64(const unsigned char *data, int *outputSize)
 
     *outputSize = outSize;
     return decodedData;
-}
-
-// Save integer value to storage file (to defined position)
-// NOTE: Storage positions is directly related to file memory layout (4 bytes each integer)
-bool SaveStorageValue(unsigned int position, int value)
-{
-    bool success = false;
-
-#if defined(SUPPORT_DATA_STORAGE)
-    char path[512] = { 0 };
-    strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, STORAGE_DATA_FILE));
-
-    unsigned int dataSize = 0;
-    unsigned int newDataSize = 0;
-    unsigned char *fileData = LoadFileData(path, &dataSize);
-    unsigned char *newFileData = NULL;
-
-    if (fileData != NULL)
-    {
-        if (dataSize <= (position*sizeof(int)))
-        {
-            // Increase data size up to position and store value
-            newDataSize = (position + 1)*sizeof(int);
-            newFileData = (unsigned char *)RL_REALLOC(fileData, newDataSize);
-
-            if (newFileData != NULL)
-            {
-                // RL_REALLOC succeded
-                int *dataPtr = (int *)newFileData;
-                dataPtr[position] = value;
-            }
-            else
-            {
-                // RL_REALLOC failed
-                TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to realloc data (%u), position in bytes (%u) bigger than actual file size", path, dataSize, position*sizeof(int));
-
-                // We store the old size of the file
-                newFileData = fileData;
-                newDataSize = dataSize;
-            }
-        }
-        else
-        {
-            // Store the old size of the file
-            newFileData = fileData;
-            newDataSize = dataSize;
-
-            // Replace value on selected position
-            int *dataPtr = (int *)newFileData;
-            dataPtr[position] = value;
-        }
-
-        success = SaveFileData(path, newFileData, newDataSize);
-        RL_FREE(newFileData);
-
-        TRACELOG(LOG_INFO, "FILEIO: [%s] Saved storage value: %i", path, value);
-    }
-    else
-    {
-        TRACELOG(LOG_INFO, "FILEIO: [%s] File created successfully", path);
-
-        dataSize = (position + 1)*sizeof(int);
-        fileData = (unsigned char *)RL_MALLOC(dataSize);
-        int *dataPtr = (int *)fileData;
-        dataPtr[position] = value;
-
-        success = SaveFileData(path, fileData, dataSize);
-        UnloadFileData(fileData);
-
-        TRACELOG(LOG_INFO, "FILEIO: [%s] Saved storage value: %i", path, value);
-    }
-#endif
-
-    return success;
-}
-
-// Load integer value from storage file (from defined position)
-// NOTE: If requested position could not be found, value 0 is returned
-int LoadStorageValue(unsigned int position)
-{
-    int value = 0;
-
-#if defined(SUPPORT_DATA_STORAGE)
-    char path[512] = { 0 };
-    strcpy(path, TextFormat("%s/%s", CORE.Storage.basePath, STORAGE_DATA_FILE));
-
-    unsigned int dataSize = 0;
-    unsigned char *fileData = LoadFileData(path, &dataSize);
-
-    if (fileData != NULL)
-    {
-        if (dataSize < (position*4)) TRACELOG(LOG_WARNING, "FILEIO: [%s] Failed to find storage position: %i", path, position);
-        else
-        {
-            int *dataPtr = (int *)fileData;
-            value = dataPtr[position];
-        }
-
-        UnloadFileData(fileData);
-
-        TRACELOG(LOG_INFO, "FILEIO: [%s] Loaded storage value: %i", path, value);
-    }
-#endif
-    return value;
 }
 
 // Open URL with default system browser (if available)
@@ -3896,14 +3771,10 @@ void SetMouseScale(float scaleX, float scaleY)
 float GetMouseWheelMove(void)
 {
     float result = 0.0f;
-    
+
 #if !defined(PLATFORM_ANDROID)
     if (fabsf(CORE.Input.Mouse.currentWheelMove.x) > fabsf(CORE.Input.Mouse.currentWheelMove.y)) result = (float)CORE.Input.Mouse.currentWheelMove.x;
     else result = (float)CORE.Input.Mouse.currentWheelMove.y;
-#endif
-
-#if defined(PLATFORM_WEB)
-    result /= 100.0f;
 #endif
 
     return result;
@@ -3912,16 +3783,11 @@ float GetMouseWheelMove(void)
 // Get mouse wheel movement X/Y as a vector
 Vector2 GetMouseWheelMoveV(void)
 {
-#if defined(PLATFORM_ANDROID)
-    return (Vector2){ 0.0f, 0.0f };
-#endif
-#if defined(PLATFORM_WEB)
-    Vector2 result = CORE.Input.Mouse.currentWheelMove;
-    result.x /= 100.0f;
-    result.y /= 100.0f;
-#endif
+    Vector2 result = { 0 };
+   
+    result = CORE.Input.Mouse.currentWheelMove;
 
-    return CORE.Input.Mouse.currentWheelMove;
+    return result;
 }
 
 // Set mouse cursor
@@ -4124,7 +3990,7 @@ static bool InitGraphicsDevice(int width, int height)
     #endif
     }
     else glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-        
+
     // Mouse passthrough
     if ((CORE.Window.flags & FLAG_WINDOW_MOUSE_PASSTHROUGH) > 0) glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_TRUE);
     else glfwWindowHint(GLFW_MOUSE_PASSTHROUGH, GLFW_FALSE);
@@ -4770,8 +4636,6 @@ static bool InitGraphicsDevice(int width, int height)
     // NOTE: It updated CORE.Window.render.width and CORE.Window.render.height
     SetupViewport(CORE.Window.currentFbo.width, CORE.Window.currentFbo.height);
 
-    ClearBackground(RAYWHITE);      // Default background color for raylib games :P
-
 #if defined(PLATFORM_ANDROID)
     CORE.Window.ready = true;
 #endif
@@ -5261,13 +5125,13 @@ void PollInputEvents(void)
 }
 
 // Scan all files and directories in a base path
-// WARNING: files.paths[] must be previously allocated and 
+// WARNING: files.paths[] must be previously allocated and
 // contain enough space to store all required paths
 static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const char *filter)
 {
     static char path[MAX_FILEPATH_LENGTH] = { 0 };
     memset(path, 0, MAX_FILEPATH_LENGTH);
-    
+
     struct dirent *dp = NULL;
     DIR *dir = opendir(basePath);
 
@@ -5279,7 +5143,7 @@ static void ScanDirectoryFiles(const char *basePath, FilePathList *files, const 
                 (strcmp(dp->d_name, "..") != 0))
             {
                 sprintf(path, "%s/%s", basePath, dp->d_name);
-                
+
                 if (filter != NULL)
                 {
                     if (IsFileExtension(path, filter))
@@ -5306,7 +5170,7 @@ static void ScanDirectoryFilesRecursively(const char *basePath, FilePathList *fi
 {
     static char path[MAX_FILEPATH_LENGTH] = { 0 };
     memset(path, 0, MAX_FILEPATH_LENGTH);
-    
+
     struct dirent *dp = NULL;
     DIR *dir = opendir(basePath);
 
@@ -5600,19 +5464,19 @@ static void WindowDropCallback(GLFWwindow *window, int count, const char **paths
     // In case previous dropped filepaths have not been freed, we free them
     if (CORE.Window.dropFileCount > 0)
     {
-        for (int i = 0; i < CORE.Window.dropFileCount; i++) RL_FREE(CORE.Window.dropFilepaths[i]);
+        for (unsigned int i = 0; i < CORE.Window.dropFileCount; i++) RL_FREE(CORE.Window.dropFilepaths[i]);
 
         RL_FREE(CORE.Window.dropFilepaths);
-        
+
         CORE.Window.dropFileCount = 0;
         CORE.Window.dropFilepaths = NULL;
     }
-    
+
     // WARNING: Paths are freed by GLFW when the callback returns, we must keep an internal copy
     CORE.Window.dropFileCount = count;
     CORE.Window.dropFilepaths = (char **)RL_CALLOC(CORE.Window.dropFileCount, sizeof(char *));
 
-    for (int i = 0; i < CORE.Window.dropFileCount; i++)
+    for (unsigned int i = 0; i < CORE.Window.dropFileCount; i++)
     {
         CORE.Window.dropFilepaths[i] = (char *)RL_CALLOC(MAX_FILEPATH_LENGTH, sizeof(char));
         strcpy(CORE.Window.dropFilepaths[i], paths[i]);
