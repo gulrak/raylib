@@ -2297,11 +2297,13 @@ void BeginScissorMode(int x, int y, int width, int height)
 
     rlEnableScissorTest();
 
+    GLint id = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &id); // Test for render texture
 #if defined(__APPLE__)
-    Vector2 scale = GetWindowScaleDPI();
-    rlScissor((int)(x*scale.x), (int)(GetScreenHeight()*scale.y - (((y + height)*scale.y))), (int)(width*scale.x), (int)(height*scale.y));
+    if(!id) // glfw on macOS implicitly scales the framebuffer, so testing for FLAG_WINDOW_HIGHDPI doesn't help
 #else
-    if ((CORE.Window.flags & FLAG_WINDOW_HIGHDPI) > 0)
+    if (!id && (CORE.Window.flags & FLAG_WINDOW_HIGHDPI) > 0) // Scale only if not drawing to RenderTexture
+#endif
     {
         Vector2 scale = GetWindowScaleDPI();
         rlScissor((int)(x*scale.x), (int)(CORE.Window.currentFbo.height - (y + height)*scale.y), (int)(width*scale.x), (int)(height*scale.y));
@@ -2310,7 +2312,6 @@ void BeginScissorMode(int x, int y, int width, int height)
     {
         rlScissor(x, CORE.Window.currentFbo.height - (y + height), width, height);
     }
-#endif
 }
 
 // End scissor mode
