@@ -79,6 +79,9 @@ DerivedData/
 .idea/
 cmake-build-*/
 
+# VSCode
+.vscode/
+
 # CMake stuff
 CMakeCache.txt
 CMakeFiles
